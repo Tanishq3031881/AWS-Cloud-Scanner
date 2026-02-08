@@ -1,9 +1,8 @@
 """
 AWS Security Audit Script
 -------------------------
-This script scans an AWS account for two common misconfigurations:
-1. S3 Buckets with "Block Public Access" disabled.
-2. IAM Users with Console access but no MFA enabled.
+Scans for S3 buckets with weak public access settings, IAM users without MFA,
+and password policy compliance.
 
 Usage:
     python audit.py
@@ -11,14 +10,17 @@ Usage:
 
 import boto3
 from botocore.exceptions import ClientError, BotoCoreError
+from colorama import Fore, Style, init
+
+# Initialize colorama
+init(autoreset=True)
 
 
 def audit_s3_buckets():
     """
     Scans all S3 buckets to check if 'Block Public Access' is enabled.
     """
-    print("\nSTARTING S3 SECURITY AUDIT...")
-    # start connection
+    print(f"\n{Fore.CYAN}STARTING S3 SECURITY AUDIT...")
     s3 = boto3.client("s3")
 
     try:
@@ -33,11 +35,13 @@ def audit_s3_buckets():
                 pab = s3.get_public_access_block(Bucket=name)
                 settings = pab["PublicAccessBlockConfiguration"]
 
-                # there are 4 blocks in AWS, if these 2 are not on, it's risky
+                # If these 2 are not on, it's risky
                 if not settings["BlockPublicAcls"] or not settings["BlockPublicPolicy"]:
-                    print(f"ALERT: Bucket '{name}' has weak public access settings!")
+                    print(
+                        f"{Fore.RED}ALERT: Bucket '{name}' has weak public access settings!"
+                    )
                 else:
-                    print(f"Bucket '{name}' is secure.")
+                    print(f"{Fore.GREEN}OK: Bucket '{name}' is secure.")
 
             except ClientError as e:
                 # If no configuration exists, it often means the bucket is fully public.
@@ -46,13 +50,13 @@ def audit_s3_buckets():
                     == "NoSuchPublicAccessBlockConfiguration"
                 ):
                     print(
-                        f"CRITICAL: Bucket '{name}' has NO Public Access Block configuration!"
+                        f"{Fore.RED}CRITICAL: Bucket '{name}' has NO Public Access Block configuration!"
                     )
                 else:
-                    print(f"Could not scan '{name}': {e}")
+                    print(f"{Fore.YELLOW}WARNING: Could not scan '{name}': {e}")
 
     except (ClientError, BotoCoreError) as e:
-        print(f"Error listing buckets: {e}")
+        print(f"{Fore.RED}Error listing buckets: {e}")
 
 
 def audit_iam_users():
@@ -60,7 +64,7 @@ def audit_iam_users():
     Scans all IAM users to check if they have Console Access enabled
     without Multi-Factor Authentication (MFA).
     """
-    print("\nSTARTING IAM MFA AUDIT...")
+    print(f"\n{Fore.CYAN}STARTING IAM MFA AUDIT...")
     iam = boto3.client("iam")
 
     try:
@@ -75,7 +79,7 @@ def audit_iam_users():
                 iam.get_login_profile(UserName=username)
                 has_console = True
             except ClientError:
-                # CLI only users are less risky for this check, they are bots
+                # CLI only users are less risky for this check
                 has_console = False
 
             if has_console:
@@ -83,46 +87,47 @@ def audit_iam_users():
                 mfa = iam.list_mfa_devices(UserName=username)["MFADevices"]
                 if not mfa:
                     print(
-                        f"CRITICAL: User '{username}' has Console Access but NO MFA enabled!"
+                        f"{Fore.RED}CRITICAL: User '{username}' has Console Access but NO MFA enabled!"
                     )
                 else:
-                    print(f"User '{username}' has MFA enabled.")
+                    print(f"{Fore.GREEN}OK: User '{username}' has MFA enabled.")
             else:
-                print(f"User '{username}' has no console access (Skipping).")
+                print(f"{Fore.YELLOW}SKIP: User '{username}' has no console access.")
 
     except (ClientError, BotoCoreError) as e:
-        print(f"Error auditing IAM: {e}")
+        print(f"{Fore.RED}Error auditing IAM: {e}")
 
 
-def audit_iam_password_length():
+def audit_password_policy():
     """
-    Scans IAM account password policy to check minimum password length.
+    Scans the IAM account password policy for CIS compliance (Min length 14).
     """
-    print("\nSTARTING IAM PASSWORD POLICY AUDIT...")
+    print(f"\n{Fore.CYAN}STARTING PASSWORD POLICY AUDIT...")
     iam = boto3.client("iam")
 
     try:
-        # Gets the account password policy
+        # Get the policy from AWS
         policy = iam.get_account_password_policy()["PasswordPolicy"]
         min_length = policy.get("MinimumPasswordLength", 0)
 
-        # checks according to CIS_Amazon_Web_Services_Foundations_Benchmark
+        # CIS Benchmark recommends 14 characters
         if min_length < 14:
             print(
-                f"ALERT: Minimum password length is {min_length}. Recommended is at least 14."
+                f"{Fore.RED}ALERT: Password length is {min_length}. CIS recommends 14+."
             )
         else:
-            print(f"Password policy is secure with minimum length of {min_length}.")
+            print(f"{Fore.GREEN}OK: Password policy is secure (Length: {min_length}).")
 
-    # if no password policy is set, it's a risk
     except ClientError as e:
         if e.response["Error"]["Code"] == "NoSuchEntity":
-            print("No password policy found. This is a security risk!")
+            print(
+                f"{Fore.RED}CRITICAL: No password policy exists! Users can set 1-character passwords."
+            )
         else:
-            print(f"Error retrieving password policy: {e}")
+            print(f"{Fore.RED}Error retrieving policy: {e}")
 
 
 if __name__ == "__main__":
     audit_s3_buckets()
     audit_iam_users()
-    audit_iam_password_length()
+    audit_password_policy()
