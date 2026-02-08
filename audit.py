@@ -60,7 +60,7 @@ def audit_iam_users():
     Scans all IAM users to check if they have Console Access enabled
     without Multi-Factor Authentication (MFA).
     """
-    print("\n🔍 STARTING IAM MFA AUDIT...")
+    print("\nSTARTING IAM MFA AUDIT...")
     iam = boto3.client("iam")
 
     try:
@@ -94,6 +94,35 @@ def audit_iam_users():
         print(f"Error auditing IAM: {e}")
 
 
+def audit_iam_password_length():
+    """
+    Scans IAM account password policy to check minimum password length.
+    """
+    print("\nSTARTING IAM PASSWORD POLICY AUDIT...")
+    iam = boto3.client("iam")
+
+    try:
+        # Gets the account password policy
+        policy = iam.get_account_password_policy()["PasswordPolicy"]
+        min_length = policy.get("MinimumPasswordLength", 0)
+
+        # checks according to CIS_Amazon_Web_Services_Foundations_Benchmark
+        if min_length < 14:
+            print(
+                f"ALERT: Minimum password length is {min_length}. Recommended is at least 14."
+            )
+        else:
+            print(f"Password policy is secure with minimum length of {min_length}.")
+
+    # if no password policy is set, it's a risk
+    except ClientError as e:
+        if e.response["Error"]["Code"] == "NoSuchEntity":
+            print("No password policy found. This is a security risk!")
+        else:
+            print(f"Error retrieving password policy: {e}")
+
+
 if __name__ == "__main__":
     audit_s3_buckets()
     audit_iam_users()
+    audit_iam_password_length()
