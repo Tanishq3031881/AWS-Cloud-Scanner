@@ -1,6 +1,6 @@
 # AWS Cloud Security Scanner
 
-A Python-based automated security tool that audits AWS environments for critical misconfigurations. It uses the `boto3` SDK to inspect the cloud infrastructure control plane.
+A Python-based automated security tool that audits AWS environments for critical misconfigurations and checks it against CIS AWS Foundations Benchmarj v6.0.0. It uses the `boto3` SDK to inspect the cloud infrastructure control plane.
 
 ## Features
 - **S3 Bucket Audit:** Scans for buckets with "Block Public Access" disabled.
