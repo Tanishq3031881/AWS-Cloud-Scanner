@@ -7,7 +7,7 @@ A Python-based automated security tool that audits AWS environments for critical
 - **MFA Audit (CIS 2.9):** Identifies console users who have not enabled Multi-Factor Authentication.
 - **Password Policy (CIS 2.7 & 2.8):**
   - Verifies minimum password length is **14+ characters**.
-  - Checks if **Password Reuse Prevention** is set to 24 (preventing recycling of old passwords).
+  - Checks if **Password Reuse Prevention** is set to 24
 
 ### 2. Storage Security (S3)
 - **Public Access Audit:** Scans all S3 buckets to ensure **"Block Public Access"** settings are strictly enabled to prevent data leaks.
@@ -26,9 +26,9 @@ A Python-based automated security tool that audits AWS environments for critical
 
 ## 🛠️ Tech Stack
 - **Python 3.9+**
-- **AWS Boto3 SDK** (Infrastructure as Code auditing)
-- **Colorama** (Terminal UI formatting)
-- **CSV Module** (Report generation)
+- **AWS Boto3 SDK** 
+- **Colorama**
+- **CSV Module** 
 
 ## How to Run
 1. Clone the repository
